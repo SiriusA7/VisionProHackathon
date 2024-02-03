@@ -36,37 +36,39 @@ namespace PolySpatial.Samples
         internal const int k_Deselected = -1;
         readonly Dictionary<int, Selection> m_CurrentSelections = new();
 
-        void OnEnable()
+        private void OnEnable()
         {
             EnhancedTouchSupport.Enable();
         }
 
-        void Update()
+        private void Update()
         {
-            foreach (var touch in Touch.activeTouches)
+            foreach (Touch touch in Touch.activeTouches)
             {
-                var spatialPointerState = EnhancedSpatialPointerSupport.GetPointerState(touch);
-                var interactionId = spatialPointerState.interactionId;
+                SpatialPointerState spatialPointerState = EnhancedSpatialPointerSupport.GetPointerState(touch);
+                int interactionId = spatialPointerState.interactionId;
 
                 // Ignore poke input--piece will get stuck to the user's finger
-                if (spatialPointerState.Kind == SpatialPointerKind.Touch)
-                    continue;
+                // if (spatialPointerState.Kind == SpatialPointerKind.Touch) continue;
+                
+                // only accept direct pinch input
+                if (spatialPointerState.Kind != SpatialPointerKind.DirectPinch) continue;
 
-                var pieceObject = spatialPointerState.targetObject;
+                GameObject pieceObject = spatialPointerState.targetObject;
                 if (pieceObject != null)
                 {
                     // Swap materials and record initial relative position & rotation from hand to object for later use when the piece is selected
                     if (pieceObject.TryGetComponent(out PieceSelectionBehavior piece) && piece.selectingPointer == -1)
                     {
-                        var pieceTransform = piece.transform;
-                        var interactionPosition = spatialPointerState.interactionPosition;
-                        var inverseDeviceRotation = Quaternion.Inverse(spatialPointerState.inputDeviceRotation);
-                        var rotationOffset = inverseDeviceRotation * pieceTransform.rotation;
-                        var positionOffset = inverseDeviceRotation * (pieceTransform.position - interactionPosition);
+                        Transform pieceTransform = piece.transform;
+                        Vector3 interactionPosition = spatialPointerState.interactionPosition;
+                        Quaternion inverseDeviceRotation = Quaternion.Inverse(spatialPointerState.inputDeviceRotation);
+                        Quaternion rotationOffset = inverseDeviceRotation * pieceTransform.rotation;
+                        Vector3 positionOffset = inverseDeviceRotation * (pieceTransform.position - interactionPosition);
                         piece.SetSelected(interactionId);
 
                         // Because events can come in faster than they are consumed, it is possible for target id to change without a prior end/cancel event
-                        if (m_CurrentSelections.TryGetValue(interactionId, out var selection))
+                        if (m_CurrentSelections.TryGetValue(interactionId, out Selection selection))
                             selection.Piece.SetSelected(k_Deselected);
 
                         m_CurrentSelections[interactionId] = new Selection
@@ -81,16 +83,16 @@ namespace PolySpatial.Samples
                 switch (spatialPointerState.phase)
                 {
                     case SpatialPointerPhase.Moved:
-                        if (m_CurrentSelections.TryGetValue(interactionId, out var selection))
+                        if (m_CurrentSelections.TryGetValue(interactionId, out Selection selection))
                         {
                             // Position the piece at the interaction position, maintaining the same relative transform from interaction position to selection pivot
-                            var deviceRotation = spatialPointerState.inputDeviceRotation;
-                            var rotation = deviceRotation * selection.RotationOffset;
-                            var position = spatialPointerState.interactionPosition + deviceRotation * selection.PositionOffset;
+                            Quaternion deviceRotation = spatialPointerState.inputDeviceRotation;
+                            Quaternion rotation = deviceRotation * selection.RotationOffset;
+                            Vector3 position = spatialPointerState.interactionPosition + deviceRotation * selection.PositionOffset;
                             selection.Piece.transform.SetPositionAndRotation(position, rotation);
                         }
-
                         break;
+                    
                     case SpatialPointerPhase.None:
                     case SpatialPointerPhase.Ended:
                     case SpatialPointerPhase.Cancelled:
@@ -100,14 +102,13 @@ namespace PolySpatial.Samples
             }
         }
 
-        void DeselectPiece(int interactionId)
+        private void DeselectPiece(int interactionId)
         {
-            if (m_CurrentSelections.TryGetValue(interactionId, out var selection))
-            {
-                // Swap materials back when the piece is deselected
-                selection.Piece.SetSelected(k_Deselected);
-                m_CurrentSelections.Remove(interactionId);
-            }
+            if (!m_CurrentSelections.TryGetValue(interactionId, out var selection)) return;
+            
+            // Swap materials back when the piece is deselected
+            selection.Piece.SetSelected(k_Deselected);
+            m_CurrentSelections.Remove(interactionId);
         }
     }
 }
