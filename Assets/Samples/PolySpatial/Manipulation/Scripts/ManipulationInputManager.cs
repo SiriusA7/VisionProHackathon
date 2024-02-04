@@ -58,7 +58,7 @@ namespace PolySpatial.Samples
                 if (pieceObject != null)
                 {
                     // Swap materials and record initial relative position & rotation from hand to object for later use when the piece is selected
-                    if (pieceObject.TryGetComponent(out PieceSelectionBehavior piece) && piece.selectingPointer == -1)
+                    if (pieceObject.TryGetComponent(out PieceSelectionBehavior piece) && piece.SelectingPointer == -1)
                     {
                         Transform pieceTransform = piece.transform;
                         Vector3 interactionPosition = spatialPointerState.interactionPosition;
@@ -89,7 +89,7 @@ namespace PolySpatial.Samples
                             Quaternion deviceRotation = spatialPointerState.inputDeviceRotation;
                             Quaternion rotation = deviceRotation * selection.RotationOffset;
                             Vector3 position = spatialPointerState.interactionPosition + deviceRotation * selection.PositionOffset;
-                            selection.Piece.transform.SetPositionAndRotation(position, rotation);
+                            selection.Piece.SetPosRot(position, rotation);
                         }
                         break;
                     
@@ -104,7 +104,7 @@ namespace PolySpatial.Samples
 
         private void DeselectPiece(int interactionId)
         {
-            if (!m_CurrentSelections.TryGetValue(interactionId, out var selection)) return;
+            if (!m_CurrentSelections.TryGetValue(interactionId, out Selection selection)) return;
             
             // Swap materials back when the piece is deselected
             selection.Piece.SetSelected(k_Deselected);
